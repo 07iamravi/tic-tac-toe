@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tic Tac Toe Firebase</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <style>
+    #board { display: grid; grid-template-columns: repeat(3, 100px); grid-gap: 5px; }
+    .cell { width: 100px; height: 100px; font-size: 48px; text-align: center; line-height: 100px; border: 1px solid #000; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<h2>Tic Tac Toe with Firebase</h2>
+
+<label>Room ID: <input id="roomIdInput" /></label>
+<button onclick="createRoom()">Create Room</button>
+<button onclick="joinRoom()">Join Room</button>
+
+<div id="status"></div>
+<div id="board"></div>
+
+<script>
+  // Firebase config - replace with your own Firebase project config
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let roomId = null;
+  let playerSymbol = null; // 'X' or 'O'
+  let currentTurn = null;
+  let board = ["", "", "", "", "", "", "", "", ""];
+
+  const boardDiv = document.getElementById('board');
+  const statusDiv = document.getElementById('status');
+
+  // Render board UI
+  function renderBoard() {
+    boardDiv.innerHTML = '';
+    board.forEach((cell, index) => {
+      const cellDiv = document.createElement('div');
+      cellDiv.className = 'cell';
+      cellDiv.textContent = cell;
+      cellDiv.onclick = () => makeMove(index);
+      boardDiv.appendChild(cellDiv);
+    });
+  }
+
+  // Create a new room
+  function createRoom() {
+    roomId = Math.random().toString(36).substring(2, 8);
+    playerSymbol = 'X';
+    currentTurn = 'X';
+    board = ["", "", "", "", "", "", "", "", ""];
+    const initialData = {
+      board,
+      currentTurn,
+      status: 'waiting', // waiting for player O
+      players: { X: true }
+    };
+    db.ref(`rooms/${roomId}`).set(initialData);
+    document.getElementById('roomIdInput').value = roomId;
+    statusDiv.textContent = `Room created. Share Room ID: ${roomId}. You are X. Waiting for player O...`;
+    listenToRoom();
+    renderBoard();
+  }
+
+  // Join an existing room
+  function joinRoom() {
+    const inputId = document.getElementById('roomIdInput').value.trim();
+    if (!inputId) {
+      alert('Enter a Room ID to join');
+      return;
+    }
+    roomId = inputId;
+    db.ref(`rooms/${roomId}/players`).once('value').then(snapshot => {
+      const players = snapshot.val() || {};
+      if (players.O) {
+        alert('Room full');
+        return;
+      }
+      playerSymbol = 'O';
+      db.ref(`rooms/${roomId}/players/O`).set(true);
+      db.ref(`rooms/${roomId}/status`).set('playing');
+      statusDiv.textContent = `Joined room ${roomId}. You are O.`;
+      listenToRoom();
+    }).catch(() => alert('Room does not exist'));
+  }
+
+  // Listen for changes in the room
+  function listenToRoom() {
+    db.ref(`rooms/${roomId}`).on('value', snapshot => {
+      const data = snapshot.val();
+      if (!data) {
+        statusDiv.textContent = 'Room closed or does not exist.';
+        return;
+      }
+      board = data.board || ["", "", "", "", "", "", "", "", ""];
+      currentTurn = data.currentTurn;
+      renderBoard();
+
+      if (data.status === 'waiting') {
+        statusDiv.textContent = `Waiting for player O to join. You are ${playerSymbol}`;
+      } else if (data.status === 'playing') {
+        if (checkWinner(board)) {
+          statusDiv.textContent = `Player ${checkWinner(board)} wins!`;
+          db.ref(`rooms/${roomId}/status`).set('finished');
+        } else if (board.every(cell => cell !== "")) {
+          statusDiv.textContent = "It's a draw!";
+          db.ref(`rooms/${roomId}/status`).set('finished');
+        } else {
+          statusDiv.textContent = (currentTurn === playerSymbol) ? "Your turn" : "Opponent's turn";
+        }
+      } else if (data.status === 'finished') {
+        statusDiv.textContent += " Game over.";
+      }
+    });
+  }
+
+  // Make a move if it's your turn and cell is empty
+  function makeMove(index) {
+    if (!roomId) {
+      alert('Create or join a room first');
+      return;
+    }
+    if (currentTurn !== playerSymbol) {
+      alert("Not your turn");
+      return;
+    }
+    if (board[index] !== "") {
+      alert("Cell already taken");
+      return;
+    }
+    board[index] = playerSymbol;
+    const nextTurn = (playerSymbol === 'X') ? 'O' : 'X';
+    db.ref(`rooms/${roomId}`).update({
+      board,
+      currentTurn: nextTurn
+    });
+  }
+
+  // Check winner helper function
+  function checkWinner(b) {
+    const lines = [
+      [0,1,2],[3,4,5],[6,7,8], // rows
+      [0,3,6],[1,4,7],[2,5,8], // cols
+      [0,4,8],[2,4,6]          // diagonals
+    ];
+    for (const [a,b,c] of lines) {
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return board[a];
+      }
+    }
+    return null;
+  }
+
+  renderBoard();
+</script>
+
+</body>
+</html>
