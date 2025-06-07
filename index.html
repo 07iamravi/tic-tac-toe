@@ -1,198 +1,704 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Real-time Multiplayer Tic Tac Toe</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; }
-    #board { display: grid; grid-template-columns: repeat(3, 80px); grid-gap: 5px; margin: 20px auto; width: 260px; }
-    .cell {
-      width: 80px; height: 80px; font-size: 2.5em; display: flex; align-items: center; justify-content: center;
-      background: #f0f0f0; cursor: pointer; border-radius: 8px; border: 1px solid #ccc;
-    }
-    .cell.winner { background: #aaffaa; }
-    #room-section, #game-section { margin: 20px 0; }
-    #status { margin: 10px 0; font-weight: bold; }
-    #room-code { font-size: 1.2em; }
-    button { padding: 8px 16px; margin: 5px; border-radius: 5px; border: none; background: #2196F3; color: #fff; font-size: 1em; cursor: pointer; }
-    button:disabled { background: #bbb; }
-  </style>
-</head>
-<body>
-  <h1>Real-time Multiplayer Tic Tac Toe</h1>
-  <div id="room-section">
-    <input type="text" id="roomInput" placeholder="Room code">
-    <button id="createBtn">Create Room</button>
-    <button id="joinBtn">Join Room</button>
-    <div id="room-code"></div>
-  </div>
-  <div id="game-section" style="display:none;">
-    <div id="status"></div>
-    <div id="board"></div>
-    <button id="leaveBtn">Leave Game</button>
-    <button id="rematchBtn" style="display:none;">Rematch</button>
-  </div>
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script>
-    // TODO: Replace with your Firebase config
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      databaseURL: "YOUR_DATABASE_URL",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // Game state
-    let roomId = null;
-    let playerSymbol = null;
-    let myTurn = false;
-    let gameRef = null;
-    let playerId = 'player-' + Math.random().toString(36).substr(2, 9);
-
-    // UI elements
-    const boardDiv = document.getElementById('board');
-    const statusDiv = document.getElementById('status');
-    const roomSection = document.getElementById('room-section');
-    const gameSection = document.getElementById('game-section');
-    const roomCodeDiv = document.getElementById('room-code');
-    const leaveBtn = document.getElementById('leaveBtn');
-    const rematchBtn = document.getElementById('rematchBtn');
-
-    // Create and join room logic
-    document.getElementById('createBtn').onclick = async () => {
-      roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
-      await db.ref('games/' + roomId).set({
-        board: ["", "", "", "", "", "", "", "", ""],
-        turn: "X",
-        players: { X: playerId },
-        status: "waiting"
-      });
-      playerSymbol = "X";
-      showRoom();
-      listenGame();
-    };
-
-    document.getElementById('joinBtn').onclick = async () => {
-      const input = document.getElementById('roomInput').value.trim().toUpperCase();
-      if (!input) return alert("Enter a room code");
-      const snap = await db.ref('games/' + input).once('value');
-      if (!snap.exists()) return alert("Room not found");
-      const game = snap.val();
-      if (game.players && game.players.O) return alert("Room full");
-      roomId = input;
-      playerSymbol = "O";
-      await db.ref('games/' + roomId + '/players/O').set(playerId);
-      await db.ref('games/' + roomId + '/status').set("playing");
-      showRoom();
-      listenGame();
-    };
-
-    function showRoom() {
-      roomSection.style.display = 'none';
-      gameSection.style.display = '';
-      roomCodeDiv.innerHTML = 'Room Code: <b>' + roomId + '</b>';
-    }
-
-    // Listen to game state changes
-    function listenGame() {
-      gameRef = db.ref('games/' + roomId);
-      gameRef.on('value', snap => {
-        const game = snap.val();
-        if (!game) {
-          alert("Game ended or room deleted.");
-          location.reload();
-          return;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐕 vs 🐈 - Multiplayer Tic Tac Toe</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <style>
+        .game-cell {
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
-        renderBoard(game.board);
-        updateStatus(game);
-        myTurn = (game.turn === playerSymbol) && game.status === "playing";
-        rematchBtn.style.display = (game.status !== "playing") ? '' : 'none';
-      });
-    }
+        .game-cell:hover {
+            transform: scale(1.05);
+            background-color: #f3f4f6;
+        }
+        .game-cell.occupied {
+            cursor: not-allowed;
+        }
+        .winner-cell {
+            animation: pulse 1s infinite;
+            background-color: #10b981 !important;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .shake {
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-purple-100 min-h-screen">
+    <!-- Firebase Config Modal -->
+    <div id="firebaseModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 fade-in">
+            <div class="text-center mb-6">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">🔥 Firebase Setup Required</h2>
+                <p class="text-gray-600">This game uses Firebase for real-time multiplayer functionality</p>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                    <h3 class="font-semibold text-blue-800 mb-2">Quick Start Options:</h3>
+                    <ol class="list-decimal list-inside text-sm text-blue-700 space-y-1">
+                        <li>Go to <a href="https://console.firebase.google.com/" target="_blank" class="underline">Firebase Console</a></li>
+                        <li>Create a new project or select existing one</li>
+                        <li>Enable Realtime Database in "Build" → "Realtime Database"</li>
+                        <li>Set database rules to allow read/write (for testing)</li>
+                        <li>Get your config from Project Settings → General</li>
+                    </ol>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Firebase Configuration (JSON):</label>
+                    <textarea 
+                        id="firebaseConfig" 
+                        class="w-full h-32 p-3 border border-gray-300 rounded-md font-mono text-sm"
+                        placeholder='Paste your Firebase config here:
+{
+  "apiKey": "your-api-key",
+  "authDomain": "your-project.firebaseapp.com",
+  "databaseURL": "https://your-project-default-rtdb.firebaseio.com/",
+  "projectId": "your-project-id",
+  "storageBucket": "your-project.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "your-app-id"
+}'></textarea>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button 
+                        onclick="connectFirebase()" 
+                        class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-plug mr-2"></i>Connect to Firebase
+                    </button>
+                    <button 
+                        onclick="playOffline()" 
+                        class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-desktop mr-2"></i>Play Offline
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    // Render board
-    function renderBoard(board) {
-      boardDiv.innerHTML = '';
-      board.forEach((cell, i) => {
-        const div = document.createElement('div');
-        div.className = 'cell';
-        div.textContent = cell;
-        div.onclick = () => makeMove(i, board);
-        boardDiv.appendChild(div);
-      });
-    }
+    <!-- Main Game Container -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-bold text-gray-800 mb-2">🐕 vs 🐈</h1>
+            <p class="text-xl text-gray-600">Real-time Multiplayer Tic Tac Toe</p>
+            <div id="connectionStatus" class="mt-2 text-sm">
+                <span class="text-yellow-600"><i class="fas fa-spinner fa-spin mr-1"></i>Connecting...</span>
+            </div>
+        </div>
 
-    // Make a move
-    function makeMove(index, board) {
-      if (!myTurn || board[index]) return;
-      board[index] = playerSymbol;
-      const winner = checkWinner(board);
-      const nextTurn = playerSymbol === "X" ? "O" : "X";
-      const status = winner ? "ended" : board.every(c => c) ? "draw" : "playing";
-      gameRef.update({
-        board,
-        turn: nextTurn,
-        status: status,
-        winner: winner || (status === "draw" ? "draw" : null)
-      });
-    }
+        <!-- Game Mode Selection -->
+        <div id="gameModeScreen" class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6 hidden">
+            <h2 class="text-2xl font-bold text-center mb-6">Choose Your Game Mode</h2>
+            <div class="space-y-4">
+                <button onclick="createRoom()" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>Create New Room
+                </button>
+                <button onclick="showJoinRoom()" class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Join Existing Room
+                </button>
+                <button onclick="playLocal()" class="w-full bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors">
+                    <i class="fas fa-users mr-2"></i>Local Multiplayer
+                </button>
+            </div>
+        </div>
 
-    // Update status message
-    function updateStatus(game) {
-      if (game.status === "waiting") {
-        statusDiv.textContent = "Waiting for opponent to join...";
-      } else if (game.status === "playing") {
-        statusDiv.textContent = (game.turn === playerSymbol) ? "Your turn" : "Opponent's turn";
-      } else if (game.status === "ended") {
-        statusDiv.textContent = (game.winner === playerSymbol) ? "You win!" : "You lose!";
-      } else if (game.status === "draw") {
-        statusDiv.textContent = "It's a draw!";
-      }
-    }
+        <!-- Join Room Screen -->
+        <div id="joinRoomScreen" class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6 hidden">
+            <h2 class="text-2xl font-bold text-center mb-6">Join Room</h2>
+            <div class="space-y-4">
+                <input 
+                    type="text" 
+                    id="roomCodeInput" 
+                    placeholder="Enter room code" 
+                    class="w-full p-3 border border-gray-300 rounded-lg text-center text-lg font-mono"
+                    maxlength="6">
+                <div class="flex gap-3">
+                    <button onclick="joinRoom()" class="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Join
+                    </button>
+                    <button onclick="showGameMode()" class="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Back
+                    </button>
+                </div>
+            </div>
+        </div>
 
-    // Check winner
-    function checkWinner(b) {
-      const lines = [
-        [0,1,2],[3,4,5],[6,7,8], // rows
-        [0,3,6],[1,4,7],[2,5,8], // cols
-        [0,4,8],[2,4,6]          // diags
-      ];
-      for (const [a,b1,c] of lines) {
-        if (b[a] && b[a] === b[b1] && b[a] === b[c]) return b[a];
-      }
-      return null;
-    }
+        <!-- Room Created Screen -->
+        <div id="roomCreatedScreen" class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6 hidden">
+            <div class="text-center">
+                <div class="text-6xl mb-4">🎉</div>
+                <h2 class="text-2xl font-bold mb-4">Room Created Successfully!</h2>
+                <p class="text-gray-600 mb-4">Share this room code with your friend:</p>
+                <div class="bg-gray-100 p-4 rounded-lg mb-4">
+                    <div id="roomCode" class="text-3xl font-mono font-bold text-center"></div>
+                </div>
+                <div class="space-y-3">
+                    <button onclick="copyRoomCode()" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-copy mr-2"></i>Copy Room Code
+                    </button>
+                    <button onclick="shareRoom()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-share mr-2"></i>Share Link
+                    </button>
+                </div>
+                <div class="mt-4 text-sm text-gray-500">
+                    <i class="fas fa-spinner fa-spin mr-1"></i>Waiting for opponent...
+                </div>
+            </div>
+        </div>
 
-    // Leave game
-    leaveBtn.onclick = async () => {
-      if (gameRef) {
-        await gameRef.remove();
-      }
-      location.reload();
-    };
+        <!-- Game Board -->
+        <div id="gameScreen" class="max-w-2xl mx-auto hidden">
+            <!-- Game Info -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="text-center">
+                        <div class="text-2xl mb-1">🐕</div>
+                        <div class="text-sm text-gray-600">Player 1</div>
+                        <div id="player1Name" class="font-semibold">Dog</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="currentTurn" class="text-lg font-bold text-blue-600">Current Turn: 🐕</div>
+                        <div id="gameStatus" class="text-sm text-gray-500 mt-1">Game in progress</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl mb-1">🐈</div>
+                        <div class="text-sm text-gray-600">Player 2</div>
+                        <div id="player2Name" class="font-semibold">Cat</div>
+                    </div>
+                </div>
+                
+                <!-- Score -->
+                <div class="flex justify-center space-x-8 text-sm">
+                    <div class="text-center">
+                        <div class="font-bold text-lg" id="player1Score">0</div>
+                        <div class="text-gray-500">Wins</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="font-bold text-lg" id="drawScore">0</div>
+                        <div class="text-gray-500">Draws</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="font-bold text-lg" id="player2Score">0</div>
+                        <div class="text-gray-500">Wins</div>
+                    </div>
+                </div>
+            </div>
 
-    // Rematch
-    rematchBtn.onclick = async () => {
-      await gameRef.update({
-        board: ["", "", "", "", "", "", "", "", ""],
-        turn: "X",
-        status: "playing",
-        winner: null
-      });
-      rematchBtn.style.display = 'none';
-    };
+            <!-- Tic Tac Toe Board -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(0)"></div>
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(1)"></div>
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(2)"></div>
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(3)"></div>
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(4)"></div>
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(5)"></div>
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(6)"></div>
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(7)"></div>
+                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(8)"></div>
+                </div>
+            </div>
 
-    // Cleanup on window close
-    window.onbeforeunload = () => {
-      if (gameRef) gameRef.remove();
-    };
-  </script>
+            <!-- Game Controls -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex gap-3 justify-center">
+                    <button onclick="resetGame()" class="bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors">
+                        <i class="fas fa-redo mr-2"></i>New Game
+                    </button>
+                    <button onclick="leaveRoom()" class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Leave Room
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast" class="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50">
+        <div id="toastMessage"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Game State
+        let gameState = {
+            board: Array(9).fill(''),
+            currentPlayer: '🐕',
+            isGameActive: true,
+            gameMode: 'offline', // 'offline', 'online', 'local'
+            roomCode: null,
+            playerId: null,
+            scores: { player1: 0, player2: 0, draws: 0 },
+            isMyTurn: true
+        };
+
+        let firebase = null;
+        let database = null;
+        let gameRef = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if there's a room code in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomCode = urlParams.get('room');
+            if (roomCode) {
+                document.getElementById('roomCodeInput').value = roomCode;
+            }
+        });
+
+        // Firebase Connection
+        function connectFirebase() {
+            const configText = document.getElementById('firebaseConfig').value.trim();
+            
+            if (!configText) {
+                showToast('Please enter Firebase configuration', 'error');
+                return;
+            }
+
+            try {
+                const config = JSON.parse(configText);
+                
+                if (!config.apiKey || !config.databaseURL) {
+                    throw new Error('Invalid configuration');
+                }
+
+                firebase.initializeApp(config);
+                database = firebase.database();
+                
+                document.getElementById('firebaseModal').classList.add('hidden');
+                document.getElementById('gameModeScreen').classList.remove('hidden');
+                updateConnectionStatus('Connected to Firebase!', 'success');
+                gameState.gameMode = 'online';
+                
+                showToast('Connected to Firebase successfully!', 'success');
+            } catch (error) {
+                console.error('Firebase connection error:', error);
+                showToast('Invalid Firebase configuration. Please check your settings.', 'error');
+            }
+        }
+
+        function playOffline() {
+            document.getElementById('firebaseModal').classList.add('hidden');
+            document.getElementById('gameModeScreen').classList.remove('hidden');
+            updateConnectionStatus('Playing offline', 'info');
+            gameState.gameMode = 'offline';
+        }
+
+        // Game Mode Functions
+        function showGameMode() {
+            document.getElementById('joinRoomScreen').classList.add('hidden');
+            document.getElementById('roomCreatedScreen').classList.add('hidden');
+            document.getElementById('gameModeScreen').classList.remove('hidden');
+        }
+
+        function showJoinRoom() {
+            document.getElementById('gameModeScreen').classList.add('hidden');
+            document.getElementById('joinRoomScreen').classList.remove('hidden');
+        }
+
+        function createRoom() {
+            if (gameState.gameMode === 'offline') {
+                showToast('Firebase connection required for online play', 'error');
+                return;
+            }
+
+            const roomCode = generateRoomCode();
+            gameState.roomCode = roomCode;
+            gameState.playerId = 'player1';
+            
+            // Create room in Firebase
+            gameRef = database.ref('games/' + roomCode);
+            gameRef.set({
+                board: Array(9).fill(''),
+                currentPlayer: '🐕',
+                players: {
+                    player1: { connected: true, symbol: '🐕' },
+                    player2: { connected: false, symbol: '🐈' }
+                },
+                gameActive: true,
+                scores: { player1: 0, player2: 0, draws: 0 },
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            // Listen for player 2 joining
+            gameRef.child('players/player2').on('value', (snapshot) => {
+                if (snapshot.val() && snapshot.val().connected) {
+                    document.getElementById('roomCreatedScreen').classList.add('hidden');
+                    document.getElementById('gameScreen').classList.remove('hidden');
+                    showToast('Opponent joined! Game starting...', 'success');
+                    setupGameListener();
+                }
+            });
+
+            document.getElementById('gameModeScreen').classList.add('hidden');
+            document.getElementById('roomCreatedScreen').classList.remove('hidden');
+            document.getElementById('roomCode').textContent = roomCode;
+        }
+
+        function joinRoom() {
+            const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            
+            if (!roomCode) {
+                showToast('Please enter a room code', 'error');
+                return;
+            }
+
+            if (gameState.gameMode === 'offline') {
+                showToast('Firebase connection required for online play', 'error');
+                return;
+            }
+
+            gameState.roomCode = roomCode;
+            gameState.playerId = 'player2';
+            gameRef = database.ref('games/' + roomCode);
+
+            // Check if room exists
+            gameRef.once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    const gameData = snapshot.val();
+                    if (gameData.players.player2.connected) {
+                        showToast('Room is already full', 'error');
+                        return;
+                    }
+
+                    // Join the room
+                    gameRef.child('players/player2').update({ connected: true });
+                    
+                    document.getElementById('joinRoomScreen').classList.add('hidden');
+                    document.getElementById('gameScreen').classList.remove('hidden');
+                    
+                    setupGameListener();
+                    syncGameState(gameData);
+                    showToast('Joined room successfully!', 'success');
+                } else {
+                    showToast('Room not found', 'error');
+                }
+            }).catch((error) => {
+                console.error('Error joining room:', error);
+                showToast('Error joining room', 'error');
+            });
+        }
+
+        function playLocal() {
+            gameState.gameMode = 'local';
+            document.getElementById('gameModeScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            updateGameDisplay();
+        }
+
+        function setupGameListener() {
+            if (!gameRef) return;
+
+            gameRef.on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const gameData = snapshot.val();
+                    syncGameState(gameData);
+                }
+            });
+
+            // Handle disconnection
+            gameRef.child('players/' + gameState.playerId).onDisconnect().update({ connected: false });
+        }
+
+        function syncGameState(gameData) {
+            gameState.board = gameData.board || Array(9).fill('');
+            gameState.currentPlayer = gameData.currentPlayer || '🐕';
+            gameState.isGameActive = gameData.gameActive !== false;
+            gameState.scores = gameData.scores || { player1: 0, player2: 0, draws: 0 };
+            
+            // Determine if it's my turn
+            gameState.isMyTurn = (gameState.playerId === 'player1' && gameState.currentPlayer === '🐕') ||
+                               (gameState.playerId === 'player2' && gameState.currentPlayer === '🐈');
+            
+            updateGameDisplay();
+        }
+
+        // Game Logic
+        function makeMove(index) {
+            if (!canMakeMove(index)) return;
+
+            const symbol = getCurrentPlayerSymbol();
+            gameState.board[index] = symbol;
+
+            if (gameState.gameMode === 'online' && gameRef) {
+                // Update Firebase
+                gameRef.update({
+                    board: gameState.board,
+                    currentPlayer: gameState.currentPlayer === '🐕' ? '🐈' : '🐕'
+                });
+            } else {
+                // Local game
+                gameState.currentPlayer = gameState.currentPlayer === '🐕' ? '🐈' : '🐕';
+                updateGameDisplay();
+            }
+
+            // Check for win/draw
+            const result = checkGameResult();
+            if (result) {
+                handleGameEnd(result);
+            }
+        }
+
+        function canMakeMove(index) {
+            if (!gameState.isGameActive) return false;
+            if (gameState.board[index] !== '') return false;
+            if (gameState.gameMode === 'online' && !gameState.isMyTurn) return false;
+            return true;
+        }
+
+        function getCurrentPlayerSymbol() {
+            if (gameState.gameMode === 'online') {
+                return gameState.playerId === 'player1' ? '🐕' : '🐈';
+            }
+            return gameState.currentPlayer;
+        }
+
+        function checkGameResult() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+                [0, 4, 8], [2, 4, 6] // diagonals
+            ];
+
+            for (let pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (gameState.board[a] && 
+                    gameState.board[a] === gameState.board[b] && 
+                    gameState.board[a] === gameState.board[c]) {
+                    return { type: 'win', winner: gameState.board[a], pattern };
+                }
+            }
+
+            if (gameState.board.every(cell => cell !== '')) {
+                return { type: 'draw' };
+            }
+
+            return null;
+        }
+
+        function handleGameEnd(result) {
+            gameState.isGameActive = false;
+
+            if (result.type === 'win') {
+                // Highlight winning pattern
+                result.pattern.forEach(index => {
+                    document.querySelectorAll('.game-cell')[index].classList.add('winner-cell');
+                });
+
+                // Update scores
+                if (result.winner === '🐕') {
+                    gameState.scores.player1++;
+                } else {
+                    gameState.scores.player2++;
+                }
+
+                const winnerName = result.winner === '🐕' ? 'Dog' : 'Cat';
+                showToast(`${result.winner} ${winnerName} wins!`, 'success');
+                document.getElementById('gameStatus').textContent = `${result.winner} wins!`;
+            } else {
+                gameState.scores.draws++;
+                showToast('It\'s a draw!', 'info');
+                document.getElementById('gameStatus').textContent = 'It\'s a draw!';
+            }
+
+            if (gameState.gameMode === 'online' && gameRef) {
+                gameRef.update({
+                    gameActive: false,
+                    scores: gameState.scores
+                });
+            }
+
+            updateScoreDisplay();
+        }
+
+        function resetGame() {
+            gameState.board = Array(9).fill('');
+            gameState.currentPlayer = '🐕';
+            gameState.isGameActive = true;
+            gameState.isMyTurn = gameState.playerId === 'player1';
+
+            if (gameState.gameMode === 'online' && gameRef) {
+                gameRef.update({
+                    board: gameState.board,
+                    currentPlayer: gameState.currentPlayer,
+                    gameActive: true
+                });
+            }
+
+            updateGameDisplay();
+            showToast('New game started!', 'info');
+        }
+
+        function leaveRoom() {
+            if (gameState.gameMode === 'online' && gameRef) {
+                gameRef.child('players/' + gameState.playerId).update({ connected: false });
+                gameRef.off();
+            }
+
+            // Reset game state
+            gameState = {
+                board: Array(9).fill(''),
+                currentPlayer: '🐕',
+                isGameActive: true,
+                gameMode: 'offline',
+                roomCode: null,
+                playerId: null,
+                scores: { player1: 0, player2: 0, draws: 0 },
+                isMyTurn: true
+            };
+
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('gameModeScreen').classList.remove('hidden');
+        }
+
+        // UI Updates
+        function updateGameDisplay() {
+            // Update board
+            const cells = document.querySelectorAll('.game-cell');
+            cells.forEach((cell, index) => {
+                cell.textContent = gameState.board[index];
+                cell.classList.remove('winner-cell', 'occupied');
+                if (gameState.board[index]) {
+                    cell.classList.add('occupied');
+                }
+            });
+
+            // Update current turn
+            document.getElementById('currentTurn').textContent = `Current Turn: ${gameState.currentPlayer}`;
+            
+            // Update game status
+            if (gameState.isGameActive) {
+                if (gameState.gameMode === 'online') {
+                    document.getElementById('gameStatus').textContent = gameState.isMyTurn ? 'Your turn' : 'Opponent\'s turn';
+                } else {
+                    document.getElementById('gameStatus').textContent = 'Game in progress';
+                }
+            }
+
+            updateScoreDisplay();
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('player1Score').textContent = gameState.scores.player1;
+            document.getElementById('player2Score').textContent = gameState.scores.player2;
+            document.getElementById('drawScore').textContent = gameState.scores.draws;
+        }
+
+        function updateConnectionStatus(message, type) {
+            const statusEl = document.getElementById('connectionStatus');
+            const colors = {
+                success: 'text-green-600',
+                error: 'text-red-600',
+                info: 'text-blue-600'
+            };
+            
+            statusEl.innerHTML = `<span class="${colors[type]}"><i class="fas fa-circle mr-1"></i>${message}</span>`;
+        }
+
+        // Utility Functions
+        function generateRoomCode() {
+            return Math.random().toString(36).substr(2, 6).toUpperCase();
+        }
+
+        function copyRoomCode() {
+            const roomCode = document.getElementById('roomCode').textContent;
+            navigator.clipboard.writeText(roomCode).then(() => {
+                showToast('Room code copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Failed to copy room code', 'error');
+            });
+        }
+
+        function shareRoom() {
+            const roomCode = document.getElementById('roomCode').textContent;
+            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: '🐕 vs 🐈 - Join my Tic Tac Toe game!',
+                    text: `Join my multiplayer Tic Tac Toe game with room code: ${roomCode}`,
+                    url: shareUrl
+                });
+            } else {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showToast('Game link copied to clipboard!', 'success');
+                }).catch(() => {
+                    showToast('Failed to copy game link', 'error');
+                });
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            const colors = {
+                success: 'bg-green-600',
+                error: 'bg-red-600',
+                info: 'bg-blue-600'
+            };
+            
+            toast.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 z-50`;
+            toastMessage.textContent = message;
+            
+            // Show toast
+            toast.classList.remove('translate-x-full');
+            
+            // Hide after 3 seconds
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3000);
+        }
+
+        // Handle room code input
+        document.getElementById('roomCodeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                joinRoom();
+            }
+        });
+
+        // Handle page visibility for online games
+        document.addEventListener('visibilitychange', function() {
+            if (gameState.gameMode === 'online' && gameRef && gameState.playerId) {
+                if (document.visibilityState === 'visible') {
+                    gameRef.child('players/' + gameState.playerId).update({ connected: true });
+                } else {
+                    gameRef.child('players/' + gameState.playerId).update({ connected: false });
+                }
+            }
+        });
+    </script>
 </body>
 </html>
