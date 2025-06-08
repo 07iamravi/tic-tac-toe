@@ -3,700 +3,1305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐕 vs 🐈 - Multiplayer Tic Tac Toe</title>
+    <title>🎮 Ultimate Tic Tac Toe - Multiplayer Gaming Experience</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
-        .game-cell {
-            transition: all 0.3s ease;
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --dark-gradient: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            --neon-blue: #00f5ff;
+            --neon-pink: #ff0080;
+            --neon-green: #39ff14;
+        }
+
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .orbitron {
+            font-family: 'Orbitron', monospace;
+        }
+
+        body {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .game-container {
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+        }
+
+        .neon-border {
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 20px var(--neon-blue), inset 0 0 20px rgba(0, 245, 255, 0.1);
+            animation: neonPulse 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes neonPulse {
+            from { box-shadow: 0 0 20px var(--neon-blue), inset 0 0 20px rgba(0, 245, 255, 0.1); }
+            to { box-shadow: 0 0 35px var(--neon-blue), inset 0 0 35px rgba(0, 245, 255, 0.2); }
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
             cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
-        .game-cell:hover {
+
+        .cell:hover {
+            background: rgba(255, 255, 255, 0.2);
             transform: scale(1.05);
-            background-color: #f3f4f6;
+            border-color: var(--neon-blue);
         }
-        .game-cell.occupied {
-            cursor: not-allowed;
+
+        .cell.winner {
+            background: var(--success-gradient);
+            animation: winnerGlow 1s ease-in-out infinite alternate;
         }
-        .winner-cell {
+
+        @keyframes winnerGlow {
+            from { box-shadow: 0 0 20px rgba(79, 172, 254, 0.5); }
+            to { box-shadow: 0 0 40px rgba(79, 172, 254, 0.8); }
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle-float 2s ease-out forwards;
+        }
+
+        @keyframes particle-float {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(0);
+            }
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            border: none;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .theme-cosmic {
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
+        }
+
+        .theme-ocean {
+            background: linear-gradient(-45deg, #2196F3, #21CBF3, #45B7D1, #96DEDA);
+        }
+
+        .theme-forest {
+            background: linear-gradient(-45deg, #11998e, #38ef7d, #2dd4bf, #059669);
+        }
+
+        .theme-sunset {
+            background: linear-gradient(-45deg, #ff9a9e, #fecfef, #fecfef, #f093fb);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: var(--neon-green);
             animation: pulse 1s infinite;
-            background-color: #10b981 !important;
         }
+
+        .status-offline {
+            background: #ff4757;
+        }
+
         @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
-        .shake {
-            animation: shake 0.5s;
+
+        .floating-icon {
+            animation: float 3s ease-in-out infinite;
         }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
         }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
+
+        .slide-in {
+            animation: slideInFromBottom 0.5s ease-out;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        @keyframes slideInFromBottom {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .slide-up {
-            animation: slideUp 0.3s ease-out;
+
+        .scoreboard {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        .room-code {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px dashed var(--neon-pink);
+            animation: dashMove 20s linear infinite;
+        }
+
+        @keyframes dashMove {
+            to {
+                stroke-dashoffset: -100;
+            }
+        }
+
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid var(--neon-blue);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .difficulty-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .difficulty-easy {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid #22c55e;
+        }
+
+        .difficulty-medium {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid #fbbf24;
+        }
+
+        .difficulty-hard {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+
+        .victory-animation {
+            animation: victoryBounce 0.6s ease-in-out;
+        }
+
+        @keyframes victoryBounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-20px);
+            }
+            60% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .sound-wave {
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: var(--neon-green);
+            margin: 0 1px;
+            animation: soundWave 1s ease-in-out infinite alternate;
+        }
+
+        .sound-wave:nth-child(2) { animation-delay: 0.1s; }
+        .sound-wave:nth-child(3) { animation-delay: 0.2s; }
+        .sound-wave:nth-child(4) { animation-delay: 0.3s; }
+
+        @keyframes soundWave {
+            0% { height: 5px; }
+            100% { height: 20px; }
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-100 to-purple-100 min-h-screen">
-    <!-- Firebase Config Modal -->
-    <div id="firebaseModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 fade-in">
-            <div class="text-center mb-6">
-                <h2 class="text-3xl font-bold text-gray-800 mb-2">🔥 Firebase Setup Required</h2>
-                <p class="text-gray-600">This game uses Firebase for real-time multiplayer functionality</p>
-            </div>
-            
-            <div class="space-y-6">
-                <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
-                    <h3 class="font-semibold text-blue-800 mb-2">Quick Start Options:</h3>
-                    <ol class="list-decimal list-inside text-sm text-blue-700 space-y-1">
-                        <li>Go to <a href="https://console.firebase.google.com/" target="_blank" class="underline">Firebase Console</a></li>
-                        <li>Create a new project or select existing one</li>
-                        <li>Enable Realtime Database in "Build" → "Realtime Database"</li>
-                        <li>Set database rules to allow read/write (for testing)</li>
-                        <li>Get your config from Project Settings → General</li>
-                    </ol>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Firebase Configuration (JSON):</label>
-                    <textarea 
-                        id="firebaseConfig" 
-                        class="w-full h-32 p-3 border border-gray-300 rounded-md font-mono text-sm"
-                        placeholder='Paste your Firebase config here:
-{
-  apiKey: "AIzaSyC6xPEfICQcxTowMZiy4HWLl-oFxwhWrN8",
-  authDomain: "tic-tac-toe-3d08c.firebaseapp.com",
-  projectId: "tic-tac-toe-3d08c",
-  storageBucket: "tic-tac-toe-3d08c.firebasestorage.app",
-  messagingSenderId: "922471928803",
-  appId: "1:922471928803:web:4d05c42e85c129abb406d6",
-  measurementId: "G-SVMQSHGR98"
-}'></textarea>
-                </div>
-                
-                <div class="flex gap-3">
-                    <button 
-                        onclick="connectFirebase()" 
-                        class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-plug mr-2"></i>Connect to Firebase
-                    </button>
-                    <button 
-                        onclick="playOffline()" 
-                        class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors">
-                        <i class="fas fa-desktop mr-2"></i>Play Offline
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <!-- Background Particles -->
+    <div id="particles" class="fixed inset-0 pointer-events-none z-0"></div>
 
     <!-- Main Game Container -->
-    <div class="container mx-auto px-4 py-8">
+    <div class="game-container rounded-3xl p-8 max-w-6xl w-full mx-auto z-10 relative">
+        
         <!-- Header -->
         <div class="text-center mb-8">
-            <h1 class="text-5xl font-bold text-gray-800 mb-2">🐕 vs 🐈</h1>
-            <p class="text-xl text-gray-600">Real-time Multiplayer Tic Tac Toe</p>
-            <div id="connectionStatus" class="mt-2 text-sm">
-                <span class="text-yellow-600"><i class="fas fa-spinner fa-spin mr-1"></i>Connecting...</span>
+            <h1 class="orbitron text-5xl font-black text-white mb-4 floating-icon">
+                🎮 <span class="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Ultimate Tic Tac Toe</span>
+            </h1>
+            <p class="text-white/80 text-lg">Real-time Multiplayer Gaming Experience</p>
+            
+            <!-- Status Bar -->
+            <div class="flex justify-center items-center space-x-6 mt-4">
+                <div class="flex items-center">
+                    <span class="status-indicator status-online"></span>
+                    <span class="text-white/80 text-sm">Online</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-users text-blue-400 mr-2"></i>
+                    <span class="text-white/80 text-sm" id="playersOnline">Loading...</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-gamepad text-purple-400 mr-2"></i>
+                    <span class="text-white/80 text-sm" id="activeGames">0 games</span>
+                </div>
             </div>
         </div>
 
         <!-- Game Mode Selection -->
-        <div id="gameModeScreen" class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6 hidden">
-            <h2 class="text-2xl font-bold text-center mb-6">Choose Your Game Mode</h2>
-            <div class="space-y-4">
-                <button onclick="createRoom()" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition-colors">
-                    <i class="fas fa-plus mr-2"></i>Create New Room
-                </button>
-                <button onclick="showJoinRoom()" class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors">
-                    <i class="fas fa-sign-in-alt mr-2"></i>Join Existing Room
-                </button>
-                <button onclick="playLocal()" class="w-full bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors">
-                    <i class="fas fa-users mr-2"></i>Local Multiplayer
-                </button>
-            </div>
-        </div>
+        <div id="gameModeScreen" class="slide-in">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                
+                <!-- Multiplayer Mode -->
+                <div class="neon-border rounded-2xl p-6 text-center hover:scale-105 transition-all duration-300 cursor-pointer" onclick="selectGameMode('multiplayer')">
+                    <div class="text-6xl mb-4">🌐</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Multiplayer</h3>
+                    <p class="text-white/70 text-sm">Play with friends online</p>
+                    <div class="mt-4">
+                        <span class="difficulty-badge difficulty-medium">Real-time</span>
+                    </div>
+                </div>
 
-        <!-- Join Room Screen -->
-        <div id="joinRoomScreen" class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6 hidden">
-            <h2 class="text-2xl font-bold text-center mb-6">Join Room</h2>
-            <div class="space-y-4">
-                <input 
-                    type="text" 
-                    id="roomCodeInput" 
-                    placeholder="Enter room code" 
-                    class="w-full p-3 border border-gray-300 rounded-lg text-center text-lg font-mono"
-                    maxlength="6">
-                <div class="flex gap-3">
-                    <button onclick="joinRoom()" class="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-sign-in-alt mr-2"></i>Join
-                    </button>
-                    <button onclick="showGameMode()" class="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 transition-colors">
-                        <i class="fas fa-arrow-left mr-2"></i>Back
-                    </button>
+                <!-- AI Mode -->
+                <div class="neon-border rounded-2xl p-6 text-center hover:scale-105 transition-all duration-300 cursor-pointer" onclick="selectGameMode('ai')">
+                    <div class="text-6xl mb-4">🤖</div>
+                    <h3 class="text-xl font-bold text-white mb-2">vs AI</h3>
+                    <p class="text-white/70 text-sm">Challenge the computer</p>
+                    <div class="mt-4 space-x-2">
+                        <span class="difficulty-badge difficulty-easy">Easy</span>
+                        <span class="difficulty-badge difficulty-hard">Hard</span>
+                    </div>
+                </div>
+
+                <!-- Tournament Mode -->
+                <div class="neon-border rounded-2xl p-6 text-center hover:scale-105 transition-all duration-300 cursor-pointer" onclick="selectGameMode('tournament')">
+                    <div class="text-6xl mb-4">🏆</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Tournament</h3>
+                    <p class="text-white/70 text-sm">Compete in brackets</p>
+                    <div class="mt-4">
+                        <span class="difficulty-badge difficulty-hard">Pro</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Theme Selection -->
+            <div class="mb-8">
+                <h3 class="text-white text-xl font-bold mb-4 text-center">🎨 Choose Your Theme</h3>
+                <div class="flex justify-center space-x-4">
+                    <button class="theme-btn w-12 h-12 rounded-full theme-cosmic border-2 border-white/30 hover:border-white transition-all" onclick="changeTheme('cosmic')"></button>
+                    <button class="theme-btn w-12 h-12 rounded-full theme-ocean border-2 border-white/30 hover:border-white transition-all" onclick="changeTheme('ocean')"></button>
+                    <button class="theme-btn w-12 h-12 rounded-full theme-forest border-2 border-white/30 hover:border-white transition-all" onclick="changeTheme('forest')"></button>
+                    <button class="theme-btn w-12 h-12 rounded-full theme-sunset border-2 border-white/30 hover:border-white transition-all" onclick="changeTheme('sunset')"></button>
+                </div>
+            </div>
+
+            <!-- Settings Panel -->
+            <div class="scoreboard rounded-2xl p-6 mb-6">
+                <h3 class="text-white text-lg font-bold mb-4 flex items-center">
+                    <i class="fas fa-cog mr-2 text-blue-400"></i>
+                    Game Settings
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-white/80">Sound Effects</span>
+                        <button id="soundToggle" class="btn-primary px-4 py-2 rounded-full text-sm" onclick="toggleSound()">
+                            <i class="fas fa-volume-up mr-1"></i> ON
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-white/80">Animations</span>
+                        <button id="animationToggle" class="btn-primary px-4 py-2 rounded-full text-sm" onclick="toggleAnimations()">
+                            <i class="fas fa-magic mr-1"></i> ON
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-white/80">Auto-save</span>
+                        <button id="autosaveToggle" class="btn-primary px-4 py-2 rounded-full text-sm" onclick="toggleAutosave()">
+                            <i class="fas fa-save mr-1"></i> ON
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Room Created Screen -->
-        <div id="roomCreatedScreen" class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6 hidden">
+        <!-- Multiplayer Lobby -->
+        <div id="multiplayerLobby" class="hidden slide-in">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-white mb-4">🌐 Multiplayer Lobby</h2>
+                <div class="flex justify-center space-x-4">
+                    <button class="btn-primary px-8 py-4 rounded-2xl text-lg font-bold" onclick="createRoom()">
+                        <i class="fas fa-plus mr-2"></i>Create Room
+                    </button>
+                    <button class="btn-primary px-8 py-4 rounded-2xl text-lg font-bold" onclick="showJoinRoom()">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Join Room
+                    </button>
+                </div>
+            </div>
+
+            <!-- Room Creation Success -->
+            <div id="roomCreated" class="hidden scoreboard rounded-2xl p-6 text-center mb-6">
+                <h3 class="text-2xl font-bold text-white mb-4">🎉 Room Created!</h3>
+                <div class="room-code rounded-2xl p-4 mb-4">
+                    <p class="text-white/80 mb-2">Share this room code:</p>
+                    <div class="flex items-center justify-center space-x-4">
+                        <span id="roomCodeDisplay" class="orbitron text-3xl font-bold text-white"></span>
+                        <button class="btn-primary px-4 py-2 rounded-lg" onclick="copyRoomCode()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-white/60">Waiting for opponent...</p>
+                <div class="loading-spinner mx-auto mt-4"></div>
+            </div>
+
+            <!-- Active Rooms -->
+            <div class="scoreboard rounded-2xl p-6">
+                <h3 class="text-white text-lg font-bold mb-4 flex items-center">
+                    <i class="fas fa-list mr-2 text-green-400"></i>
+                    Active Rooms
+                </h3>
+                <div id="activeRoomsList" class="space-y-2">
+                    <p class="text-white/60 text-center">Loading rooms...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Game Setup -->
+        <div id="aiGameSetup" class="hidden slide-in">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-white mb-4">🤖 AI Challenge</h2>
+                <p class="text-white/80">Choose your difficulty level</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="neon-border rounded-2xl p-6 text-center cursor-pointer hover:scale-105 transition-all" onclick="startAIGame('easy')">
+                    <div class="text-4xl mb-4">😊</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Easy</h3>
+                    <p class="text-white/70 text-sm">Perfect for beginners</p>
+                    <div class="mt-4">
+                        <span class="difficulty-badge difficulty-easy">Casual</span>
+                    </div>
+                </div>
+
+                <div class="neon-border rounded-2xl p-6 text-center cursor-pointer hover:scale-105 transition-all" onclick="startAIGame('medium')">
+                    <div class="text-4xl mb-4">🤔</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Medium</h3>
+                    <p class="text-white/70 text-sm">Balanced challenge</p>
+                    <div class="mt-4">
+                        <span class="difficulty-badge difficulty-medium">Balanced</span>
+                    </div>
+                </div>
+
+                <div class="neon-border rounded-2xl p-6 text-center cursor-pointer hover:scale-105 transition-all" onclick="startAIGame('hard')">
+                    <div class="text-4xl mb-4">😈</div>
+                    <h3 class="text-xl font-bold text-white mb-2">Hard</h3>
+                    <p class="text-white/70 text-sm">For experts only!</p>
+                    <div class="mt-4">
+                        <span class="difficulty-badge difficulty-hard">Expert</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="text-center">
-                <div class="text-6xl mb-4">🎉</div>
-                <h2 class="text-2xl font-bold mb-4">Room Created Successfully!</h2>
-                <p class="text-gray-600 mb-4">Share this room code with your friend:</p>
-                <div class="bg-gray-100 p-4 rounded-lg mb-4">
-                    <div id="roomCode" class="text-3xl font-mono font-bold text-center"></div>
-                </div>
-                <div class="space-y-3">
-                    <button onclick="copyRoomCode()" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
-                        <i class="fas fa-copy mr-2"></i>Copy Room Code
-                    </button>
-                    <button onclick="shareRoom()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-share mr-2"></i>Share Link
-                    </button>
-                </div>
-                <div class="mt-4 text-sm text-gray-500">
-                    <i class="fas fa-spinner fa-spin mr-1"></i>Waiting for opponent...
-                </div>
+                <button class="btn-primary px-6 py-3 rounded-xl" onclick="backToGameModes()">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Game Modes
+                </button>
             </div>
         </div>
 
         <!-- Game Board -->
-        <div id="gameScreen" class="max-w-2xl mx-auto hidden">
-            <!-- Game Info -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <div class="text-center">
-                        <div class="text-2xl mb-1">🐕</div>
-                        <div class="text-sm text-gray-600">Player 1</div>
-                        <div id="player1Name" class="font-semibold">Dog</div>
-                    </div>
-                    <div class="text-center">
-                        <div id="currentTurn" class="text-lg font-bold text-blue-600">Current Turn: 🐕</div>
-                        <div id="gameStatus" class="text-sm text-gray-500 mt-1">Game in progress</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-2xl mb-1">🐈</div>
-                        <div class="text-sm text-gray-600">Player 2</div>
-                        <div id="player2Name" class="font-semibold">Cat</div>
-                    </div>
-                </div>
+        <div id="gameScreen" class="hidden slide-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                <!-- Score -->
-                <div class="flex justify-center space-x-8 text-sm">
+                <!-- Player 1 Info -->
+                <div class="scoreboard rounded-2xl p-6">
                     <div class="text-center">
-                        <div class="font-bold text-lg" id="player1Score">0</div>
-                        <div class="text-gray-500">Wins</div>
+                        <div class="text-6xl mb-4" id="player1Icon">🐕</div>
+                        <h3 class="text-xl font-bold text-white mb-2" id="player1Name">Player 1</h3>
+                        <div class="text-3xl font-bold text-blue-400 mb-2" id="player1Score">0</div>
+                        <p class="text-white/60 text-sm">Wins</p>
+                        <div class="mt-4" id="player1Status">
+                            <span class="status-indicator status-online"></span>
+                            <span class="text-white/80 text-sm">Ready</span>
+                        </div>
                     </div>
-                    <div class="text-center">
-                        <div class="font-bold text-lg" id="drawScore">0</div>
-                        <div class="text-gray-500">Draws</div>
+                </div>
+
+                <!-- Game Board -->
+                <div class="text-center">
+                    <div class="mb-6">
+                        <h3 class="text-2xl font-bold text-white mb-2">
+                            <span id="currentTurnDisplay">Current Turn: 🐕</span>
+                        </h3>
+                        <div class="flex justify-center items-center space-x-4">
+                            <span class="text-white/80">Round:</span>
+                            <span class="orbitron text-xl font-bold text-white" id="roundCounter">1</span>
+                        </div>
                     </div>
+
+                    <div class="game-board mx-auto max-w-md">
+                        <div class="cell" data-index="0" onclick="makeMove(0)"></div>
+                        <div class="cell" data-index="1" onclick="makeMove(1)"></div>
+                        <div class="cell" data-index="2" onclick="makeMove(2)"></div>
+                        <div class="cell" data-index="3" onclick="makeMove(3)"></div>
+                        <div class="cell" data-index="4" onclick="makeMove(4)"></div>
+                        <div class="cell" data-index="5" onclick="makeMove(5)"></div>
+                        <div class="cell" data-index="6" onclick="makeMove(6)"></div>
+                        <div class="cell" data-index="7" onclick="makeMove(7)"></div>
+                        <div class="cell" data-index="8" onclick="makeMove(8)"></div>
+                    </div>
+
+                    <div class="mt-6 space-x-4">
+                        <button class="btn-primary px-6 py-3 rounded-xl" onclick="resetGame()">
+                            <i class="fas fa-redo mr-2"></i>New Game
+                        </button>
+                        <button class="btn-primary px-6 py-3 rounded-xl" onclick="backToGameModes()">
+                            <i class="fas fa-home mr-2"></i>Main Menu
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Player 2 Info -->
+                <div class="scoreboard rounded-2xl p-6">
                     <div class="text-center">
-                        <div class="font-bold text-lg" id="player2Score">0</div>
-                        <div class="text-gray-500">Wins</div>
+                        <div class="text-6xl mb-4" id="player2Icon">🐈</div>
+                        <h3 class="text-xl font-bold text-white mb-2" id="player2Name">Player 2</h3>
+                        <div class="text-3xl font-bold text-purple-400 mb-2" id="player2Score">0</div>
+                        <p class="text-white/60 text-sm">Wins</p>
+                        <div class="mt-4" id="player2Status">
+                            <span class="status-indicator status-offline"></span>
+                            <span class="text-white/80 text-sm">Waiting...</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tic Tac Toe Board -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                <div class="grid grid-cols-3 gap-2 max-w-xs mx-auto">
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(0)"></div>
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(1)"></div>
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(2)"></div>
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(3)"></div>
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(4)"></div>
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(5)"></div>
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(6)"></div>
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(7)"></div>
-                    <div class="game-cell bg-gray-50 border-2 border-gray-200 rounded-lg h-20 flex items-center justify-center text-3xl font-bold" onclick="makeMove(8)"></div>
+            <!-- Game Stats -->
+            <div class="mt-8 scoreboard rounded-2xl p-6">
+                <h3 class="text-white text-lg font-bold mb-4 flex items-center">
+                    <i class="fas fa-chart-line mr-2 text-yellow-400"></i>
+                    Game Statistics
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div>
+                        <div class="text-2xl font-bold text-blue-400" id="totalGames">0</div>
+                        <p class="text-white/60 text-sm">Total Games</p>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-green-400" id="totalWins">0</div>
+                        <p class="text-white/60 text-sm">Your Wins</p>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-yellow-400" id="totalDraws">0</div>
+                        <p class="text-white/60 text-sm">Draws</p>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-purple-400" id="winRate">0%</div>
+                        <p class="text-white/60 text-sm">Win Rate</p>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Game Controls -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <div class="flex gap-3 justify-center">
-                    <button onclick="resetGame()" class="bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors">
-                        <i class="fas fa-redo mr-2"></i>New Game
-                    </button>
-                    <button onclick="leaveRoom()" class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
-                        <i class="fas fa-sign-out-alt mr-2"></i>Leave Room
-                    </button>
-                </div>
+        <!-- Sound Control -->
+        <div class="fixed bottom-4 right-4 z-20">
+            <button id="soundButton" class="btn-primary w-12 h-12 rounded-full flex items-center justify-center" onclick="toggleMasterSound()">
+                <i class="fas fa-volume-up"></i>
+            </button>
+        </div>
+
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="fixed top-4 right-4 z-20 bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 text-white text-sm">
+            <span class="status-indicator status-online"></span>
+            Connected
+        </div>
+    </div>
+
+    <!-- Modal for Join Room -->
+    <div id="joinRoomModal" class="fixed inset-0 modal-overlay hidden z-50 flex items-center justify-center p-4">
+        <div class="modal-content rounded-3xl p-8 max-w-md w-full">
+            <h3 class="text-2xl font-bold text-white mb-6 text-center">Join Room</h3>
+            <div class="mb-6">
+                <label class="block text-white/80 mb-2">Room Code</label>
+                <input type="text" id="joinRoomCode" class="w-full p-4 rounded-xl bg-black/30 border border-white/30 text-white text-center orbitron text-lg" placeholder="Enter room code" maxlength="6">
+            </div>
+            <div class="flex space-x-4">
+                <button class="btn-primary flex-1 py-3 rounded-xl" onclick="joinRoom()">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Join
+                </button>
+                <button class="bg-gray-600 text-white flex-1 py-3 rounded-xl" onclick="closeJoinRoomModal()">
+                    Cancel
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notifications -->
-    <div id="toast" class="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50">
-        <div id="toastMessage"></div>
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="fixed inset-0 modal-overlay hidden z-50 flex items-center justify-center p-4">
+        <div class="modal-content rounded-3xl p-8 max-w-md w-full text-center victory-animation">
+            <div class="text-8xl mb-4" id="victoryIcon">🎉</div>
+            <h3 class="text-3xl font-bold text-white mb-4" id="victoryTitle">Victory!</h3>
+            <p class="text-white/80 mb-6" id="victoryMessage">Congratulations on your win!</p>
+            <div class="space-x-4">
+                <button class="btn-primary px-6 py-3 rounded-xl" onclick="playAgain()">
+                    <i class="fas fa-redo mr-2"></i>Play Again
+                </button>
+                <button class="bg-gray-600 text-white px-6 py-3 rounded-xl" onclick="closeVictoryModal()">
+                    <i class="fas fa-home mr-2"></i>Main Menu
+                </button>
+            </div>
+        </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
     <script>
-        // Game State
-        let gameState = {
-            board: Array(9).fill(''),
-            currentPlayer: '🐕',
-            isGameActive: true,
-            gameMode: 'offline', // 'offline', 'online', 'local'
-            roomCode: null,
-            playerId: null,
-            scores: { player1: 0, player2: 0, draws: 0 },
-            isMyTurn: true
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqHWGl3UhZCOHiXZr1OLfF9yOZ2JqOdwc",
+            authDomain: "tictactoe-demo-12345.firebaseapp.com",
+            databaseURL: "https://tictactoe-demo-12345-default-rtdb.firebaseio.com/",
+            projectId: "tictactoe-demo-12345",
+            storageBucket: "tictactoe-demo-12345.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdefghijklmnopqrstuvwxyz"
         };
 
-        let firebase = null;
-        let database = null;
-        let gameRef = null;
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if there's a room code in URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomCode = urlParams.get('room');
-            if (roomCode) {
-                document.getElementById('roomCodeInput').value = roomCode;
+        // Game State
+        let gameState = {
+            mode: null,
+            board: Array(9).fill(''),
+            currentPlayer: 'X',
+            player1: { name: 'Player 1', icon: '🐕', score: 0 },
+            player2: { name: 'Player 2', icon: '🐈', score: 0 },
+            roomCode: null,
+            isHost: false,
+            gameActive: true,
+            aiDifficulty: 'medium',
+            settings: {
+                sound: true,
+                animations: true,
+                autosave: true
+            },
+            stats: {
+                totalGames: 0,
+                totalWins: 0,
+                totalDraws: 0
             }
-        });
+        };
 
-        // Firebase Connection
-        function connectFirebase() {
-            const configText = document.getElementById('firebaseConfig').value.trim();
+        // Sound Effects
+        const sounds = {
+            move: () => playTone(800, 100),
+            win: () => playTone(1200, 300),
+            draw: () => playTone(600, 200),
+            click: () => playTone(400, 50)
+        };
+
+        function playTone(frequency, duration) {
+            if (!gameState.settings.sound) return;
             
-            if (!configText) {
-                showToast('Please enter Firebase configuration', 'error');
-                return;
-            }
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration / 1000);
+        }
 
-            try {
-                const config = JSON.parse(configText);
-                
-                if (!config.apiKey || !config.databaseURL) {
-                    throw new Error('Invalid configuration');
+        // Initialize Game
+        function init() {
+            loadSettings();
+            createBackgroundParticles();
+            updateConnectionStatus();
+            setInterval(updateStats, 5000);
+        }
+
+        // Background Particles
+        function createBackgroundParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                createParticle(container);
+            }
+        }
+
+        function createParticle(container) {
+            const particle = document.createElement('div');
+            particle.className = 'absolute w-1 h-1 bg-white opacity-50 rounded-full';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 5 + 's';
+            particle.style.animation = 'float 8s ease-in-out infinite';
+            container.appendChild(particle);
+        }
+
+        // Game Mode Selection
+        function selectGameMode(mode) {
+            sounds.click();
+            gameState.mode = mode;
+            hideAllScreens();
+            
+            switch(mode) {
+                case 'multiplayer':
+                    document.getElementById('multiplayerLobby').classList.remove('hidden');
+                    break;
+                case 'ai':
+                    document.getElementById('aiGameSetup').classList.remove('hidden');
+                    break;
+                case 'tournament':
+                    // Tournament mode implementation
+                    alert('Tournament mode coming soon!');
+                    showGameModes();
+                    break;
+            }
+        }
+
+        function hideAllScreens() {
+            const screens = ['gameModeScreen', 'multiplayerLobby', 'aiGameSetup', 'gameScreen'];
+            screens.forEach(screen => {
+                document.getElementById(screen).classList.add('hidden');
+            });
+        }
+
+        function showGameModes() {
+            hideAllScreens();
+            document.getElementById('gameModeScreen').classList.remove('hidden');
+        }
+
+        // Multiplayer Functions
+        function createRoom() {
+            sounds.click();
+            const roomCode = generateRoomCode();
+            gameState.roomCode = roomCode;
+            gameState.isHost = true;
+            
+            // Create room in Firebase
+            const roomRef = database.ref('rooms/' + roomCode);
+            roomRef.set({
+                host: 'player1',
+                players: {
+                    player1: {
+                        name: 'Player 1',
+                        icon: '🐕',
+                        connected: true
+                    }
+                },
+                gameState: {
+                    board: Array(9).fill(''),
+                    currentPlayer: 'X',
+                    gameActive: true
+                },
+                createdAt: Date.now()
+            });
+
+            // Listen for player joins
+            roomRef.on('value', (snapshot) => {
+                const roomData = snapshot.val();
+                if (roomData && roomData.players.player2) {
+                    startMultiplayerGame();
                 }
+            });
 
-                firebase.initializeApp(config);
-                database = firebase.database();
-                
-                document.getElementById('firebaseModal').classList.add('hidden');
-                document.getElementById('gameModeScreen').classList.remove('hidden');
-                updateConnectionStatus('Connected to Firebase!', 'success');
-                gameState.gameMode = 'online';
-                
-                showToast('Connected to Firebase successfully!', 'success');
-            } catch (error) {
-                console.error('Firebase connection error:', error);
-                showToast('Invalid Firebase configuration. Please check your settings.', 'error');
-            }
+            document.getElementById('roomCodeDisplay').textContent = roomCode;
+            document.getElementById('roomCreated').classList.remove('hidden');
         }
 
-        function playOffline() {
-            document.getElementById('firebaseModal').classList.add('hidden');
-            document.getElementById('gameModeScreen').classList.remove('hidden');
-            updateConnectionStatus('Playing offline', 'info');
-            gameState.gameMode = 'offline';
-        }
-
-        // Game Mode Functions
-        function showGameMode() {
-            document.getElementById('joinRoomScreen').classList.add('hidden');
-            document.getElementById('roomCreatedScreen').classList.add('hidden');
-            document.getElementById('gameModeScreen').classList.remove('hidden');
+        function generateRoomCode() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
         }
 
         function showJoinRoom() {
-            document.getElementById('gameModeScreen').classList.add('hidden');
-            document.getElementById('joinRoomScreen').classList.remove('hidden');
+            sounds.click();
+            document.getElementById('joinRoomModal').classList.remove('hidden');
         }
 
-        function createRoom() {
-            if (gameState.gameMode === 'offline') {
-                showToast('Firebase connection required for online play', 'error');
-                return;
-            }
-
-            const roomCode = generateRoomCode();
-            gameState.roomCode = roomCode;
-            gameState.playerId = 'player1';
-            
-            // Create room in Firebase
-            gameRef = database.ref('games/' + roomCode);
-            gameRef.set({
-                board: Array(9).fill(''),
-                currentPlayer: '🐕',
-                players: {
-                    player1: { connected: true, symbol: '🐕' },
-                    player2: { connected: false, symbol: '🐈' }
-                },
-                gameActive: true,
-                scores: { player1: 0, player2: 0, draws: 0 },
-                createdAt: firebase.database.ServerValue.TIMESTAMP
-            });
-
-            // Listen for player 2 joining
-            gameRef.child('players/player2').on('value', (snapshot) => {
-                if (snapshot.val() && snapshot.val().connected) {
-                    document.getElementById('roomCreatedScreen').classList.add('hidden');
-                    document.getElementById('gameScreen').classList.remove('hidden');
-                    showToast('Opponent joined! Game starting...', 'success');
-                    setupGameListener();
-                }
-            });
-
-            document.getElementById('gameModeScreen').classList.add('hidden');
-            document.getElementById('roomCreatedScreen').classList.remove('hidden');
-            document.getElementById('roomCode').textContent = roomCode;
+        function closeJoinRoomModal() {
+            document.getElementById('joinRoomModal').classList.add('hidden');
         }
 
         function joinRoom() {
-            const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-            
-            if (!roomCode) {
-                showToast('Please enter a room code', 'error');
-                return;
-            }
+            const roomCode = document.getElementById('joinRoomCode').value.toUpperCase();
+            if (!roomCode) return;
 
-            if (gameState.gameMode === 'offline') {
-                showToast('Firebase connection required for online play', 'error');
-                return;
-            }
-
-            gameState.roomCode = roomCode;
-            gameState.playerId = 'player2';
-            gameRef = database.ref('games/' + roomCode);
-
-            // Check if room exists
-            gameRef.once('value').then((snapshot) => {
-                if (snapshot.exists()) {
-                    const gameData = snapshot.val();
-                    if (gameData.players.player2.connected) {
-                        showToast('Room is already full', 'error');
-                        return;
-                    }
-
+            const roomRef = database.ref('rooms/' + roomCode);
+            roomRef.once('value', (snapshot) => {
+                const roomData = snapshot.val();
+                if (roomData && !roomData.players.player2) {
                     // Join the room
-                    gameRef.child('players/player2').update({ connected: true });
+                    roomRef.child('players/player2').set({
+                        name: 'Player 2',
+                        icon: '🐈',
+                        connected: true
+                    });
                     
-                    document.getElementById('joinRoomScreen').classList.add('hidden');
-                    document.getElementById('gameScreen').classList.remove('hidden');
-                    
-                    setupGameListener();
-                    syncGameState(gameData);
-                    showToast('Joined room successfully!', 'success');
+                    gameState.roomCode = roomCode;
+                    gameState.isHost = false;
+                    closeJoinRoomModal();
+                    startMultiplayerGame();
                 } else {
-                    showToast('Room not found', 'error');
+                    alert('Room not found or full!');
                 }
-            }).catch((error) => {
-                console.error('Error joining room:', error);
-                showToast('Error joining room', 'error');
             });
         }
 
-        function playLocal() {
-            gameState.gameMode = 'local';
-            document.getElementById('gameModeScreen').classList.add('hidden');
+        function startMultiplayerGame() {
+            hideAllScreens();
             document.getElementById('gameScreen').classList.remove('hidden');
-            updateGameDisplay();
-        }
-
-        function setupGameListener() {
-            if (!gameRef) return;
-
+            resetBoard();
+            
+            // Set up real-time game sync
+            const gameRef = database.ref('rooms/' + gameState.roomCode + '/gameState');
             gameRef.on('value', (snapshot) => {
-                if (snapshot.exists()) {
-                    const gameData = snapshot.val();
-                    syncGameState(gameData);
+                const data = snapshot.val();
+                if (data) {
+                    gameState.board = data.board;
+                    gameState.currentPlayer = data.currentPlayer;
+                    gameState.gameActive = data.gameActive;
+                    updateBoard();
+                    updateCurrentTurn();
                 }
             });
-
-            // Handle disconnection
-            gameRef.child('players/' + gameState.playerId).onDisconnect().update({ connected: false });
         }
 
-        function syncGameState(gameData) {
-            gameState.board = gameData.board || Array(9).fill('');
-            gameState.currentPlayer = gameData.currentPlayer || '🐕';
-            gameState.isGameActive = gameData.gameActive !== false;
-            gameState.scores = gameData.scores || { player1: 0, player2: 0, draws: 0 };
+        function copyRoomCode() {
+            const roomCode = document.getElementById('roomCodeDisplay').textContent;
+            navigator.clipboard.writeText(roomCode).then(() => {
+                // Show feedback
+                const button = event.target;
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                }, 1000);
+            });
+        }
+
+        // AI Game Functions
+        function startAIGame(difficulty) {
+            sounds.click();
+            gameState.aiDifficulty = difficulty;
+            gameState.player2.name = `AI (${difficulty.toUpperCase()})`;
+            gameState.player2.icon = '🤖';
             
-            // Determine if it's my turn
-            gameState.isMyTurn = (gameState.playerId === 'player1' && gameState.currentPlayer === '🐕') ||
-                               (gameState.playerId === 'player2' && gameState.currentPlayer === '🐈');
+            hideAllScreens();
+            document.getElementById('gameScreen').classList.remove('hidden');
+            resetBoard();
+            updatePlayerInfo();
+        }
+
+        function makeAIMove() {
+            if (gameState.currentPlayer !== 'O' || !gameState.gameActive) return;
+
+            let move;
+            switch(gameState.aiDifficulty) {
+                case 'easy':
+                    move = getRandomMove();
+                    break;
+                case 'medium':
+                    move = getMediumMove();
+                    break;
+                case 'hard':
+                    move = getBestMove();
+                    break;
+            }
+
+            if (move !== -1) {
+                setTimeout(() => makeMove(move), 500);
+            }
+        }
+
+        function getRandomMove() {
+            const availableMoves = gameState.board.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
+            return availableMoves.length > 0 ? availableMoves[Math.floor(Math.random() * availableMoves.length)] : -1;
+        }
+
+        function getMediumMove() {
+            // Try to win first, then block, then random
+            let move = findWinningMove('O');
+            if (move !== -1) return move;
             
-            updateGameDisplay();
+            move = findWinningMove('X');
+            if (move !== -1) return move;
+            
+            return getRandomMove();
+        }
+
+        function getBestMove() {
+            return minimax(gameState.board, 0, true).index;
+        }
+
+        function findWinningMove(player) {
+            for (let i = 0; i < 9; i++) {
+                if (gameState.board[i] === '') {
+                    gameState.board[i] = player;
+                    if (checkWinner() === player) {
+                        gameState.board[i] = '';
+                        return i;
+                    }
+                    gameState.board[i] = '';
+                }
+            }
+            return -1;
+        }
+
+        function minimax(board, depth, isMaximizing) {
+            const winner = checkWinner();
+            if (winner === 'O') return { score: 10 - depth };
+            if (winner === 'X') return { score: depth - 10 };
+            if (board.every(cell => cell !== '')) return { score: 0 };
+
+            if (isMaximizing) {
+                let bestScore = -Infinity;
+                let bestMove;
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === '') {
+                        board[i] = 'O';
+                        const score = minimax(board, depth + 1, false).score;
+                        board[i] = '';
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = i;
+                        }
+                    }
+                }
+                return { score: bestScore, index: bestMove };
+            } else {
+                let bestScore = Infinity;
+                let bestMove;
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === '') {
+                        board[i] = 'X';
+                        const score = minimax(board, depth + 1, true).score;
+                        board[i] = '';
+                        if (score < bestScore) {
+                            bestScore = score;
+                            bestMove = i;
+                        }
+                    }
+                }
+                return { score: bestScore, index: bestMove };
+            }
         }
 
         // Game Logic
         function makeMove(index) {
-            if (!canMakeMove(index)) return;
+            if (gameState.board[index] !== '' || !gameState.gameActive) return;
 
-            const symbol = getCurrentPlayerSymbol();
-            gameState.board[index] = symbol;
-
-            if (gameState.gameMode === 'online' && gameRef) {
-                // Update Firebase
-                gameRef.update({
+            gameState.board[index] = gameState.currentPlayer;
+            sounds.move();
+            
+            // Update UI
+            updateBoard();
+            createMoveParticles(index);
+            
+            // Check for winner
+            const winner = checkWinner();
+            if (winner) {
+                endGame(winner);
+                return;
+            }
+            
+            // Check for draw
+            if (gameState.board.every(cell => cell !== '')) {
+                endGame('draw');
+                return;
+            }
+            
+            // Switch players
+            gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
+            updateCurrentTurn();
+            
+            // Sync with Firebase for multiplayer
+            if (gameState.mode === 'multiplayer' && gameState.roomCode) {
+                database.ref('rooms/' + gameState.roomCode + '/gameState').set({
                     board: gameState.board,
-                    currentPlayer: gameState.currentPlayer === '🐕' ? '🐈' : '🐕'
+                    currentPlayer: gameState.currentPlayer,
+                    gameActive: gameState.gameActive
                 });
-            } else {
-                // Local game
-                gameState.currentPlayer = gameState.currentPlayer === '🐕' ? '🐈' : '🐕';
-                updateGameDisplay();
             }
-
-            // Check for win/draw
-            const result = checkGameResult();
-            if (result) {
-                handleGameEnd(result);
+            
+            // AI move
+            if (gameState.mode === 'ai' && gameState.currentPlayer === 'O') {
+                makeAIMove();
             }
         }
 
-        function canMakeMove(index) {
-            if (!gameState.isGameActive) return false;
-            if (gameState.board[index] !== '') return false;
-            if (gameState.gameMode === 'online' && !gameState.isMyTurn) return false;
-            return true;
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, index) => {
+                const value = gameState.board[index];
+                if (value === 'X') {
+                    cell.textContent = gameState.player1.icon;
+                } else if (value === 'O') {
+                    cell.textContent = gameState.player2.icon;
+                } else {
+                    cell.textContent = '';
+                }
+            });
         }
 
-        function getCurrentPlayerSymbol() {
-            if (gameState.gameMode === 'online') {
-                return gameState.playerId === 'player1' ? '🐕' : '🐈';
-            }
-            return gameState.currentPlayer;
+        function updateCurrentTurn() {
+            const display = document.getElementById('currentTurnDisplay');
+            const icon = gameState.currentPlayer === 'X' ? gameState.player1.icon : gameState.player2.icon;
+            display.textContent = `Current Turn: ${icon}`;
         }
 
-        function checkGameResult() {
-            const winPatterns = [
+        function updatePlayerInfo() {
+            document.getElementById('player1Name').textContent = gameState.player1.name;
+            document.getElementById('player1Icon').textContent = gameState.player1.icon;
+            document.getElementById('player1Score').textContent = gameState.player1.score;
+            
+            document.getElementById('player2Name').textContent = gameState.player2.name;
+            document.getElementById('player2Icon').textContent = gameState.player2.icon;
+            document.getElementById('player2Score').textContent = gameState.player2.score;
+        }
+
+        function checkWinner() {
+            const lines = [
                 [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
                 [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
                 [0, 4, 8], [2, 4, 6] // diagonals
             ];
-
-            for (let pattern of winPatterns) {
-                const [a, b, c] = pattern;
-                if (gameState.board[a] && 
-                    gameState.board[a] === gameState.board[b] && 
-                    gameState.board[a] === gameState.board[c]) {
-                    return { type: 'win', winner: gameState.board[a], pattern };
+            
+            for (let line of lines) {
+                const [a, b, c] = line;
+                if (gameState.board[a] && gameState.board[a] === gameState.board[b] && gameState.board[a] === gameState.board[c]) {
+                    highlightWinningLine(line);
+                    return gameState.board[a];
                 }
             }
-
-            if (gameState.board.every(cell => cell !== '')) {
-                return { type: 'draw' };
-            }
-
             return null;
         }
 
-        function handleGameEnd(result) {
-            gameState.isGameActive = false;
+        function highlightWinningLine(line) {
+            line.forEach(index => {
+                document.querySelector(`[data-index="${index}"]`).classList.add('winner');
+            });
+        }
 
-            if (result.type === 'win') {
-                // Highlight winning pattern
-                result.pattern.forEach(index => {
-                    document.querySelectorAll('.game-cell')[index].classList.add('winner-cell');
-                });
-
-                // Update scores
-                if (result.winner === '🐕') {
-                    gameState.scores.player1++;
-                } else {
-                    gameState.scores.player2++;
-                }
-
-                const winnerName = result.winner === '🐕' ? 'Dog' : 'Cat';
-                showToast(`${result.winner} ${winnerName} wins!`, 'success');
-                document.getElementById('gameStatus').textContent = `${result.winner} wins!`;
+        function endGame(result) {
+            gameState.gameActive = false;
+            let title, message, icon;
+            
+            if (result === 'draw') {
+                title = "It's a Draw!";
+                message = "Great game! Try again?";
+                icon = "🤝";
+                sounds.draw();
+                gameState.stats.totalDraws++;
             } else {
-                gameState.scores.draws++;
-                showToast('It\'s a draw!', 'info');
-                document.getElementById('gameStatus').textContent = 'It\'s a draw!';
+                const winner = result === 'X' ? gameState.player1 : gameState.player2;
+                title = `${winner.name} Wins!`;
+                message = `${winner.icon} Victory!`;
+                icon = "🎉";
+                sounds.win();
+                
+                if (result === 'X') {
+                    gameState.player1.score++;
+                    gameState.stats.totalWins++;
+                } else {
+                    gameState.player2.score++;
+                }
             }
-
-            if (gameState.gameMode === 'online' && gameRef) {
-                gameRef.update({
-                    gameActive: false,
-                    scores: gameState.scores
-                });
-            }
-
-            updateScoreDisplay();
+            
+            gameState.stats.totalGames++;
+            updatePlayerInfo();
+            updateStats();
+            saveSettings();
+            
+            document.getElementById('victoryTitle').textContent = title;
+            document.getElementById('victoryMessage').textContent = message;
+            document.getElementById('victoryIcon').textContent = icon;
+            document.getElementById('victoryModal').classList.remove('hidden');
         }
 
         function resetGame() {
+            sounds.click();
+            resetBoard();
+            closeVictoryModal();
+        }
+
+        function resetBoard() {
             gameState.board = Array(9).fill('');
-            gameState.currentPlayer = '🐕';
-            gameState.isGameActive = true;
-            gameState.isMyTurn = gameState.playerId === 'player1';
-
-            if (gameState.gameMode === 'online' && gameRef) {
-                gameRef.update({
-                    board: gameState.board,
-                    currentPlayer: gameState.currentPlayer,
-                    gameActive: true
-                });
-            }
-
-            updateGameDisplay();
-            showToast('New game started!', 'info');
-        }
-
-        function leaveRoom() {
-            if (gameState.gameMode === 'online' && gameRef) {
-                gameRef.child('players/' + gameState.playerId).update({ connected: false });
-                gameRef.off();
-            }
-
-            // Reset game state
-            gameState = {
-                board: Array(9).fill(''),
-                currentPlayer: '🐕',
-                isGameActive: true,
-                gameMode: 'offline',
-                roomCode: null,
-                playerId: null,
-                scores: { player1: 0, player2: 0, draws: 0 },
-                isMyTurn: true
-            };
-
-            document.getElementById('gameScreen').classList.add('hidden');
-            document.getElementById('gameModeScreen').classList.remove('hidden');
-        }
-
-        // UI Updates
-        function updateGameDisplay() {
-            // Update board
-            const cells = document.querySelectorAll('.game-cell');
-            cells.forEach((cell, index) => {
-                cell.textContent = gameState.board[index];
-                cell.classList.remove('winner-cell', 'occupied');
-                if (gameState.board[index]) {
-                    cell.classList.add('occupied');
-                }
+            gameState.currentPlayer = 'X';
+            gameState.gameActive = true;
+            
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('winner');
             });
-
-            // Update current turn
-            document.getElementById('currentTurn').textContent = `Current Turn: ${gameState.currentPlayer}`;
             
-            // Update game status
-            if (gameState.isGameActive) {
-                if (gameState.gameMode === 'online') {
-                    document.getElementById('gameStatus').textContent = gameState.isMyTurn ? 'Your turn' : 'Opponent\'s turn';
-                } else {
-                    document.getElementById('gameStatus').textContent = 'Game in progress';
-                }
+            updateCurrentTurn();
+        }
+
+        function playAgain() {
+            resetGame();
+        }
+
+        function closeVictoryModal() {
+            document.getElementById('victoryModal').classList.add('hidden');
+        }
+
+        function backToGameModes() {
+            sounds.click();
+            
+            // Clean up Firebase listeners
+            if (gameState.roomCode) {
+                database.ref('rooms/' + gameState.roomCode).off();
             }
-
-            updateScoreDisplay();
-        }
-
-        function updateScoreDisplay() {
-            document.getElementById('player1Score').textContent = gameState.scores.player1;
-            document.getElementById('player2Score').textContent = gameState.scores.player2;
-            document.getElementById('drawScore').textContent = gameState.scores.draws;
-        }
-
-        function updateConnectionStatus(message, type) {
-            const statusEl = document.getElementById('connectionStatus');
-            const colors = {
-                success: 'text-green-600',
-                error: 'text-red-600',
-                info: 'text-blue-600'
-            };
             
-            statusEl.innerHTML = `<span class="${colors[type]}"><i class="fas fa-circle mr-1"></i>${message}</span>`;
+            gameState.roomCode = null;
+            gameState.isHost = false;
+            showGameModes();
         }
 
-        // Utility Functions
-        function generateRoomCode() {
-            return Math.random().toString(36).substr(2, 6).toUpperCase();
-        }
-
-        function copyRoomCode() {
-            const roomCode = document.getElementById('roomCode').textContent;
-            navigator.clipboard.writeText(roomCode).then(() => {
-                showToast('Room code copied to clipboard!', 'success');
-            }).catch(() => {
-                showToast('Failed to copy room code', 'error');
-            });
-        }
-
-        function shareRoom() {
-            const roomCode = document.getElementById('roomCode').textContent;
-            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+        // Visual Effects
+        function createMoveParticles(index) {
+            if (!gameState.settings.animations) return;
             
-            if (navigator.share) {
-                navigator.share({
-                    title: '🐕 vs 🐈 - Join my Tic Tac Toe game!',
-                    text: `Join my multiplayer Tic Tac Toe game with room code: ${roomCode}`,
-                    url: shareUrl
-                });
+            const cell = document.querySelector(`[data-index="${index}"]`);
+            for (let i = 0; i < 10; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                cell.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 2000);
+            }
+        }
+
+        // Theme Management
+        function changeTheme(theme) {
+            sounds.click();
+            document.body.className = document.body.className.replace(/theme-\w+/, '');
+            document.body.classList.add(`theme-${theme}`);
+            localStorage.setItem('gameTheme', theme);
+        }
+
+        // Settings Management
+        function toggleSound() {
+            gameState.settings.sound = !gameState.settings.sound;
+            const button = document.getElementById('soundToggle');
+            button.innerHTML = gameState.settings.sound ? 
+                '<i class="fas fa-volume-up mr-1"></i> ON' : 
+                '<i class="fas fa-volume-mute mr-1"></i> OFF';
+            saveSettings();
+        }
+
+        function toggleAnimations() {
+            gameState.settings.animations = !gameState.settings.animations;
+            const button = document.getElementById('animationToggle');
+            button.innerHTML = gameState.settings.animations ? 
+                '<i class="fas fa-magic mr-1"></i> ON' : 
+                '<i class="fas fa-magic mr-1"></i> OFF';
+            saveSettings();
+        }
+
+        function toggleAutosave() {
+            gameState.settings.autosave = !gameState.settings.autosave;
+            const button = document.getElementById('autosaveToggle');
+            button.innerHTML = gameState.settings.autosave ? 
+                '<i class="fas fa-save mr-1"></i> ON' : 
+                '<i class="fas fa-save mr-1"></i> OFF';
+            saveSettings();
+        }
+
+        function toggleMasterSound() {
+            toggleSound();
+            const button = document.getElementById('soundButton');
+            button.innerHTML = gameState.settings.sound ? 
+                '<i class="fas fa-volume-up"></i>' : 
+                '<i class="fas fa-volume-mute"></i>';
+        }
+
+        function saveSettings() {
+            if (gameState.settings.autosave) {
+                localStorage.setItem('gameSettings', JSON.stringify(gameState.settings));
+                localStorage.setItem('gameStats', JSON.stringify(gameState.stats));
+            }
+        }
+
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('gameSettings');
+            const savedStats = localStorage.getItem('gameStats');
+            const savedTheme = localStorage.getItem('gameTheme');
+            
+            if (savedSettings) {
+                gameState.settings = { ...gameState.settings, ...JSON.parse(savedSettings) };
+            }
+            
+            if (savedStats) {
+                gameState.stats = { ...gameState.stats, ...JSON.parse(savedStats) };
+            }
+            
+            if (savedTheme) {
+                changeTheme(savedTheme);
+            }
+            
+            updateSettingsUI();
+        }
+
+        function updateSettingsUI() {
+            document.getElementById('soundToggle').innerHTML = gameState.settings.sound ? 
+                '<i class="fas fa-volume-up mr-1"></i> ON' : 
+                '<i class="fas fa-volume-mute mr-1"></i> OFF';
+            document.getElementById('animationToggle').innerHTML = gameState.settings.animations ? 
+                '<i class="fas fa-magic mr-1"></i> ON' : 
+                '<i class="fas fa-magic mr-1"></i> OFF';
+            document.getElementById('autosaveToggle').innerHTML = gameState.settings.autosave ? 
+                '<i class="fas fa-save mr-1"></i> ON' : 
+                '<i class="fas fa-save mr-1"></i> OFF';
+        }
+
+        // Statistics
+        function updateStats() {
+            document.getElementById('totalGames').textContent = gameState.stats.totalGames;
+            document.getElementById('totalWins').textContent = gameState.stats.totalWins;
+            document.getElementById('totalDraws').textContent = gameState.stats.totalDraws;
+            
+            const winRate = gameState.stats.totalGames > 0 ? 
+                Math.round((gameState.stats.totalWins / gameState.stats.totalGames) * 100) : 0;
+            document.getElementById('winRate').textContent = winRate + '%';
+            
+            // Update online stats (simulated)
+            document.getElementById('playersOnline').textContent = Math.floor(Math.random() * 100) + 50 + ' players';
+            document.getElementById('activeGames').textContent = Math.floor(Math.random() * 20) + 5 + ' games';
+        }
+
+        function updateConnectionStatus() {
+            const status = document.getElementById('connectionStatus');
+            const isOnline = navigator.onLine;
+            
+            if (isOnline) {
+                status.innerHTML = '<span class="status-indicator status-online"></span>Connected';
             } else {
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    showToast('Game link copied to clipboard!', 'success');
-                }).catch(() => {
-                    showToast('Failed to copy game link', 'error');
-                });
+                status.innerHTML = '<span class="status-indicator status-offline"></span>Offline';
             }
         }
 
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            const toastMessage = document.getElementById('toastMessage');
-            
-            const colors = {
-                success: 'bg-green-600',
-                error: 'bg-red-600',
-                info: 'bg-blue-600'
-            };
-            
-            toast.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 z-50`;
-            toastMessage.textContent = message;
-            
-            // Show toast
-            toast.classList.remove('translate-x-full');
-            
-            // Hide after 3 seconds
-            setTimeout(() => {
-                toast.classList.add('translate-x-full');
-            }, 3000);
-        }
+        // Initialize when page loads
+        window.addEventListener('load', init);
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
 
-        // Handle room code input
-        document.getElementById('roomCodeInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                joinRoom();
-            }
-        });
-
-        // Handle page visibility for online games
-        document.addEventListener('visibilitychange', function() {
-            if (gameState.gameMode === 'online' && gameRef && gameState.playerId) {
-                if (document.visibilityState === 'visible') {
-                    gameRef.child('players/' + gameState.playerId).update({ connected: true });
-                } else {
-                    gameRef.child('players/' + gameState.playerId).update({ connected: false });
-                }
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (gameState.roomCode) {
+                database.ref('rooms/' + gameState.roomCode).off();
             }
         });
     </script>
